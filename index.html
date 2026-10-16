@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>平衡とキラリティの換算</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ee / ΔG">
+<meta name="theme-color" content="#F2F4F1">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAACWklEQVR42u3cMU4CQRiA0YFwCWOsPIO9HdewXy6gsTThAtJZcA07LmJFCDWEHotJiAIhaGaWneF9lREEMrz87mYn21tvVkE6Vt8SCA7BITgEh+AQHIJDcAgOwSHBITgEh+AQHIJDcAgOwSE4JDgEh+AQHIJDcAgOwSE4BIcEh+AQHIJDcAgOwSE4BIfgEBwSHIJDcAgOwSE4BIfgEByCQ4JDcAgOwSE4BIfgEByCQ3BIcAgOwaGUDXK/wf3r8zWv79fbePfzx/Al4SuPH7Z7r18Sjitn0U5xkTMR6ZNRDZEycJBRh48+GXw4W9GlcRgbNQ0Pk0NwCA7BITgEh7rZwBJkataMQgjz5WL3m+G0+XyawIHF8YbTJoRQChE4csm4u7k9fDQOklJGCBwtsfj50Hy5KGKEOCBN3AkZf3oOHLWNjfO/9fjMOD/gIKM8H3AIjo6NjSKGBxyCQ3AIDsEhOARHnT1O3sPvS/PnF/+qs1dY4BAc3RseHR8bcFzMR/dlwJG+c3z87wCl/Wz2STw8Zs0ofvcndoKFQnYKwpGeyOHW4r3sITVCRuWygKMNIvnuCeaAVHAIDsEhOASH4EhT1rstq+X1NznUIg7Do46xkWty8FGBjIz/VvgoXUbIem0lfmL3NC6RRay33qwssZytCA7BITgEh+AQHIJDcAgOCQ7BITgEh+AQHIJDcAgOwSHBITgEh+AQHIJDcAgOwSE4BIcEh+AQHIJDcAgOwSE4BIfgkOAQHIJDcAgOwSE4BIfgEBwSHIJDcAgOwSE4BIfgEByCQ3BIcAgOJesbyG6QncZYtwkAAAAASUVORK5CYII=">
+<style>
+  :root{
+    --paper:#F2F4F1;
+    --ink:#16211E;
+    --muted:#7C8A84;
+    --line:#D5DBD6;
+    --a:#15706A;
+    --b:#8E3B6B;
+    --sans:"Helvetica Neue",Helvetica,Arial,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+    --serif:"Helvetica Neue",Helvetica,Arial,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+    --field:#FFFFFF;
+    --track:#E4E9E5;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#111917;--ink:#E7EDE9;--muted:#8DA097;--line:#2A3833;
+      --a:#4FB5A5;--b:#D87FA8;--field:#192220;--track:#233029;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#111917;--ink:#E7EDE9;--muted:#8DA097;--line:#2A3833;
+    --a:#4FB5A5;--b:#D87FA8;--field:#192220;--track:#233029;
+  }
+  *{box-sizing:border-box}
+  button,input,select{touch-action:manipulation}
+  body{
+    margin:0;padding:32px 20px 64px;
+    background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:15px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto}
+  .ratio,.stat .v,td,input[type=number],.pct{font-variant-numeric:tabular-nums}
+
+  h1{
+    font-family:var(--sans);font-weight:600;font-size:24px;
+    letter-spacing:.005em;margin:0 0 4px;
+  }
+  .sub{color:var(--muted);font-size:13px;margin:0 0 28px}
+  .sub code{font-family:var(--serif);font-size:14px;color:var(--ink)}
+
+  /* ---- hero: the bar ---- */
+  .bar-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .sp{font-size:13px}
+  .sp .name{font-family:var(--serif);font-size:17px;margin-right:6px}
+  .sp.a .name{color:var(--a)}
+  .sp.b .name{color:var(--b)}
+  .sp .pct{font-family:var(--serif);font-size:15px}
+  .bar{
+    position:relative;display:flex;height:46px;border-radius:3px;
+    background:var(--track);
+    cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;
+  }
+  .bar .handle{
+    position:absolute;top:-5px;bottom:-5px;width:11px;margin-left:-5.5px;
+    background:var(--paper);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.16);
+    pointer-events:none;
+  }
+  .bar.dragging .seg{transition:none}
+  .hint{font-size:11.5px;color:var(--muted);margin:7px 0 0}
+  .seg{transition:width .18s ease}
+  .seg.a{border-radius:3px 0 0 3px}
+  .seg.b{border-radius:0 3px 3px 0}
+  .seg.a{background:var(--a)}
+  .seg.b{background:var(--b)}
+
+  .ratio{
+    font-family:var(--sans);font-size:32px;font-weight:500;line-height:1.25;
+    margin:18px 0 2px;letter-spacing:-.01em;
+  }
+  .ratio .colon{color:var(--muted);margin:0 .18em}
+  .ratio sup{font-size:.55em}
+  .ratio-note{color:var(--muted);font-size:13px;margin:0 0 26px}
+
+  /* ---- controls ---- */
+  .field{margin-bottom:22px}
+  label{display:block;font-size:13px;margin-bottom:7px;color:var(--muted)}
+  label b{color:var(--ink);font-weight:500}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=number]{
+    font-family:var(--serif);font-size:17px;
+    width:110px;padding:7px 9px;
+    border:1px solid var(--line);border-radius:3px;
+    background:var(--field);color:var(--ink);
+  }
+  input[type=number].sm{width:84px;font-size:16px}
+  select{
+    font-family:var(--sans);font-size:14px;padding:7px 8px;
+    border:1px solid var(--line);border-radius:3px;background:var(--field);color:var(--ink);
+  }
+  input:focus-visible,select:focus-visible,button:focus-visible{
+    outline:2px solid var(--a);outline-offset:1px;
+  }
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .chip{
+    font-family:var(--sans);font-size:12px;padding:4px 9px;
+    border:1px solid var(--line);border-radius:999px;
+    background:transparent;color:var(--muted);cursor:pointer;
+  }
+  .chip:hover{border-color:var(--a);color:var(--a)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+  hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 26px}
+  .tab{
+    font-family:var(--sans);font-size:14px;padding:9px 16px;
+    background:none;border:0;border-bottom:2px solid transparent;
+    color:var(--muted);cursor:pointer;margin-bottom:-1px;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab.on{color:var(--ink);border-bottom-color:var(--a)}
+  [hidden]{display:none !important}
+
+  .stats{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:4px}
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-family:var(--serif);font-size:19px}
+
+  /* ---- reference table ---- */
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th{
+    text-align:left;font-weight:500;font-size:12px;color:var(--muted);
+    padding:0 0 6px;border-bottom:1px solid var(--line);
+  }
+  th:last-child,td:last-child{text-align:right}
+  td{padding:7px 0;border-bottom:1px solid var(--line);font-family:var(--serif);font-size:15px}
+  tr.pick{cursor:pointer}
+  tr.pick:hover td{color:var(--a)}
+
+  .foot{color:var(--muted);font-size:12.5px;line-height:1.7}
+  .foot code{font-family:var(--serif);font-size:13.5px;color:var(--ink)}
+
+  @media (max-width:520px){
+    body{padding:22px 16px 56px}
+    h1{font-size:22px}
+    .ratio{font-size:26px}
+    input[type=number]{width:100%;max-width:150px;padding:10px}
+    input[type=number].sm{width:78px}
+    .chip{padding:8px 12px;font-size:13px}
+    .tab{padding:11px 13px;font-size:13.5px}
+    td{padding:11px 0}
+    .stats{gap:20px}
+  }
+  details.fx{border-top:1px solid var(--line);margin-top:26px;padding:14px 0 4px}
+  details.fx summary{
+    cursor:pointer;font-size:13px;color:var(--muted);
+    list-style:none;padding:4px 0;
+  }
+  details.fx summary::-webkit-details-marker{display:none}
+  details.fx summary::before{content:"＋ ";font-size:12px}
+  details.fx[open] summary::before{content:"− "}
+  details.fx summary:hover{color:var(--ink)}
+  .fx .eq{
+    font-size:14.5px;line-height:2.1;margin:12px 0 0;
+    overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;
+    font-variant-numeric:tabular-nums;
+  }
+  .fx .num{
+    margin-top:14px;padding:13px 14px;border-radius:4px;
+    background:var(--track);
+  }
+  .fx .num .eq{margin:0;line-height:2.2}
+  .fx .lbl{font-size:12px;color:var(--muted);margin:16px 0 0;letter-spacing:.02em}
+  .fx .def{font-size:12.5px;color:var(--muted);line-height:1.95;margin:10px 0 0}
+  .fx var{font-style:italic;font-family:inherit}
+  .fx .op{color:var(--muted)}
+  @media (prefers-reduced-motion:reduce){.seg{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>平衡とキラリティの換算</h1>
+
+  <nav class="tabs">
+    <button class="tab on" data-p="eq">ΔG ⇄ 比率</button>
+    <button class="tab" data-p="ee">ee ⇄ 比率</button>
+    <button class="tab" data-p="dope">ee の調製</button>
+  </nav>
+
+  <section id="p-eq">
+  <p class="sub">A ⇌ B について <code>ΔG = G(B) − G(A)</code>、<code>K = [B]/[A] = exp(−ΔG/RT)</code>。ΔG が正なら B が高エネルギー側（=少数種）。</p>
+
+  <div class="bar-head">
+    <span class="sp a"><span class="name">A</span><span class="pct" id="pctA">50.0%</span></span>
+    <span class="sp b"><span class="pct" id="pctB">50.0%</span><span class="name" style="margin:0 0 0 6px">B</span></span>
+  </div>
+  <div class="bar" id="barEq">
+    <div class="seg a" id="segA" style="width:50%"></div>
+    <div class="seg b" id="segB" style="width:50%"></div>
+    <div class="handle" id="hEq" style="left:50%"></div>
+  </div>
+  <p class="hint">バーを左右にドラッグして比率を変えると、ΔG が決まります</p>
+
+  <div class="ratio" id="ratio">1.00 <span class="colon">:</span> 1.00</div>
+  <p class="ratio-note" id="ratioNote">等量。298.15 K（25 °C）</p>
+
+  <div class="field">
+    <label for="dg"><b>ΔG</b>（B − A のエネルギー差）</label>
+    <div class="row">
+      <input type="number" inputmode="decimal" id="dg" step="0.1" value="0">
+      <select id="unit">
+        <option value="kJ">kJ/mol</option>
+        <option value="kcal">kcal/mol</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="temp"><b>温度</b></label>
+    <div class="row">
+      <input type="number" inputmode="decimal" id="temp" step="1" value="298.15" class="sm"> K
+      <input type="number" inputmode="decimal" id="tempC" step="1" value="25" class="sm" style="margin-left:12px"> °C
+    </div>
+    <div class="chips" id="tempChips"></div>
+  </div>
+
+  <hr>
+
+  <div class="field" style="margin-bottom:8px">
+    <label><b>実測値から逆算</b>（NMR 積分値やピーク面積をそのまま入れる）</label>
+    <div class="row">
+      <span class="sp a"><span class="name">A</span></span>
+      <input type="number" inputmode="decimal" id="intA" class="sm" step="any" value="1">
+      <span class="sp b" style="margin-left:10px"><span class="name">B</span></span>
+      <input type="number" inputmode="decimal" id="intB" class="sm" step="any" value="1">
+    </div>
+  </div>
+  <p class="foot" id="revNote">比を入れると上の ΔG に反映されます。</p>
+
+  <hr>
+
+  <div class="stats">
+    <div class="stat"><div class="k">平衡定数 K = [B]/[A]</div><div class="v" id="kval">1.000</div></div>
+    <div class="stat"><div class="k">偏り（多数 − 少数）</div><div class="v" id="bias">0.0%</div></div>
+  </div>
+
+  <hr>
+
+  <table>
+    <thead><tr><th>比率</th><th>少数種の割合</th><th id="thDG">|ΔG| / kJ mol⁻¹</th></tr></thead>
+    <tbody id="refBody"></tbody>
+  </table>
+  <p class="foot" style="margin-top:10px">行をクリックすると、その ΔG が入ります（現在の温度での値）。</p>
+
+  <hr>
+
+  <p class="foot">
+    R = 8.3145 J K⁻¹ mol⁻¹。A・B が縮退（等価な配座が n 個ある等）している場合は
+    <code>K = (n<sub>B</sub>/n<sub>A</sub>)·exp(−ΔG/RT)</code> となり、その分だけ実測比が偏ります。
+    速度論支配で凍結された比には、この式は使えません。
+  </p>
+
+  <details class="fx" id="fx-eq">
+    <summary>計算式を見る</summary>
+    <p class="lbl">一般式</p>
+    <div class="eq">
+      <var>K</var> = [B] / [A] = exp( −Δ<var>G</var> / <var>RT</var> )<br>
+      Δ<var>G</var> = −<var>RT</var> ln <var>K</var><br>
+      <var>x</var><sub>A</sub> = 1 / (1 + <var>K</var>) ，
+      <var>x</var><sub>B</sub> = <var>K</var> / (1 + <var>K</var>)
+    </div>
+    <p class="def">
+      Δ<var>G</var> = <var>G</var>(B) − <var>G</var>(A)：B と A の自由エネルギー差（J mol⁻¹）<br>
+      <var>R</var> = 8.314462618 J K⁻¹ mol⁻¹：気体定数<br>
+      <var>T</var>：絶対温度（K）<br>
+      <var>K</var>：平衡定数、<var>x</var>：モル分率
+    </p>
+    <p class="lbl">現在の値を代入</p>
+    <div class="num"><div class="eq" id="fxEqNum"></div></div>
+  </details>
+  </section>
+
+  <section id="p-ee" hidden>
+    <p class="sub">面積比 → <code>ee = |主 − 副| / (主 + 副) × 100</code>。鏡像体だけでなく、ジアステレオマー比（de）や P/M らせんの偏りにもそのまま使えます。</p>
+
+    <div class="chips" id="pairChips" style="margin-bottom:24px"></div>
+
+    <div class="bar-head">
+      <span class="sp a"><span class="name" id="nm1">D</span><span class="pct" id="pct1">50.00%</span></span>
+      <span class="sp b"><span class="pct" id="pct2">50.00%</span><span class="name" id="nm2" style="margin:0 0 0 6px">L</span></span>
+    </div>
+    <div class="bar" id="barEe">
+      <div class="seg a" id="seg1" style="width:50%"></div>
+      <div class="seg b" id="seg2" style="width:50%"></div>
+      <div class="handle" id="hEe" style="left:50%"></div>
+    </div>
+    <p class="hint">バーをドラッグして ee を調整できます</p>
+
+    <div class="ratio" id="eeBig">0.00% ee</div>
+    <p class="ratio-note" id="eeNote">ラセミ体</p>
+
+    <div class="field">
+      <label for="ee"><b>鏡像体過剰率 ee</b>（多い方: <span id="majName">D</span>体、下の面積欄で入れ替え）</label>
+      <div class="row">
+        <input type="number" inputmode="decimal" id="ee" step="0.1" min="0" max="100" value="0"> %
+      </div>
+    </div>
+
+    <div class="field">
+      <label><b>面積比から求める</b>（HPLC のピーク面積や NMR 積分値をそのまま）</label>
+      <div class="row">
+        <span class="sp a"><span class="name" id="nm3">D</span></span>
+        <input type="number" inputmode="decimal" id="ar1" class="sm" step="any" value="50">
+        <span class="sp b" style="margin-left:10px"><span class="name" id="nm4">L</span></span>
+        <input type="number" inputmode="decimal" id="ar2" class="sm" step="any" value="50">
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="stats">
+      <div class="stat"><div class="k">エナンチオマー比 er</div><div class="v" id="erVal">50.00 : 50.00</div></div>
+      <div class="stat"><div class="k">少数側で規格化</div><div class="v" id="erNorm">1.00 : 1</div></div>
+    </div>
+
+    <hr>
+
+    <div class="field" style="margin-bottom:6px">
+      <label>この比に対応するエネルギー差 <b>ΔΔG</b>（<span id="eeTemp">298.15 K</span>、温度は 1 枚目のタブで変更）</label>
+      <div class="ratio" id="ddg" style="margin:6px 0 0;font-size:26px">0.00 kJ/mol</div>
+    </div>
+    <p class="foot">
+      ee が速度論支配で決まっている場合（不斉合成の生成物比）、これは競合するジアステレオマー遷移状態の
+      <code>ΔΔG<sup>‡</sup></code> に相当します。熱力学支配で平衡している場合（らせん反転などジアステレオマー間の平衡）は基底状態の <code>ΔΔG</code> です。
+      鏡像体どうしは非キラル環境では等エネルギーなので、値が 0 でない前提としてキラルな影響が要ります。
+    </p>
+
+    <hr>
+
+    <table>
+      <thead><tr><th>ee</th><th>比率</th><th id="thDDG">|ΔΔG| / kJ mol⁻¹</th></tr></thead>
+      <tbody id="eeRefBody"></tbody>
+    </table>
+    <p class="foot" style="margin-top:10px">行をクリックするとその ee が入ります。</p>
+
+  <details class="fx" id="fx-ee">
+    <summary>計算式を見る</summary>
+    <p class="lbl">一般式</p>
+    <div class="eq">
+      ee = |<var>n</var><sub>1</sub> − <var>n</var><sub>2</sub>| / (<var>n</var><sub>1</sub> + <var>n</var><sub>2</sub>) × 100<br>
+      er = (100 + ee) : (100 − ee)<br>
+      ΔΔ<var>G</var> = <var>RT</var> ln[ (100 + ee) / (100 − ee) ]
+    </div>
+    <p class="def">
+      <var>n</var><sub>1</sub>, <var>n</var><sub>2</sub>：各鏡像体の量（面積・積分値・mol いずれも可）<br>
+      ee：鏡像体過剰率（%）、er：鏡像体比<br>
+      ΔΔ<var>G</var>：この比に対応するエネルギー差（速度論支配なら遷移状態の ΔΔ<var>G</var><sup>‡</sup>）
+    </p>
+    <p class="lbl">現在の値を代入</p>
+    <div class="num"><div class="eq" id="fxEeNum"></div></div>
+  </details>
+  </section>
+
+  <section id="p-dope" hidden>
+    <p class="sub">片方の鏡像体に、もう片方（または ee の違う試料）を加えて目標の ee に合わせるときの必要量。<code>必要量 = m₀(e₀ − e目標) / (e目標 − e添加)</code>（e は符号付きの ee）。</p>
+
+    <div class="chips" id="pairChips2" style="margin-bottom:24px"></div>
+
+    <div class="field">
+      <label><b>手持ちの試料</b></label>
+      <div class="row">
+        <input type="number" inputmode="decimal" id="m0" step="any" value="100"> mg
+        <span style="margin-left:12px">ee</span>
+        <input type="number" inputmode="decimal" id="ee0" class="sm" step="any" min="0" max="100" value="100"> %
+        <span style="margin-left:8px">過剰</span>
+        <select id="side0"></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label><b>加える試料</b></label>
+      <div class="row">
+        <span>ee</span>
+        <input type="number" inputmode="decimal" id="eeAdd" class="sm" step="any" min="0" max="100" value="100"> %
+        <span style="margin-left:8px">過剰</span>
+        <select id="sideAdd"></select>
+      </div>
+      <div class="chips" id="addChips"></div>
+    </div>
+
+    <div class="field">
+      <label><b>目標の ee</b></label>
+      <div class="row">
+        <input type="number" inputmode="decimal" id="eeT" step="any" min="0" max="100" value="60"> %
+        <span style="margin-left:8px">過剰</span>
+        <select id="sideT"></select>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="ratio" id="dopeOut">25.00 mg</div>
+    <p class="ratio-note" id="dopeNote"></p>
+
+    <div class="bar-head">
+      <span class="sp a"><span class="name" id="dnm1">R</span><span class="pct" id="dpct1"></span></span>
+      <span class="sp b"><span class="pct" id="dpct2"></span><span class="name" id="dnm2" style="margin:0 0 0 6px">S</span></span>
+    </div>
+    <div class="bar" id="barDope">
+      <div class="seg a" id="dseg1" style="width:50%"></div>
+      <div class="seg b" id="dseg2" style="width:50%"></div>
+      <div class="handle" id="hDope" style="left:50%"></div>
+    </div>
+    <p class="hint">バーをドラッグすると目標 ee が変わります</p>
+
+    <div class="stats" style="margin-top:18px">
+      <div class="stat"><div class="k">調製後の全量</div><div class="v" id="dTotal">—</div></div>
+      <div class="stat"><div class="k">内訳</div><div class="v" id="dBreak">—</div></div>
+    </div>
+
+    <hr>
+
+    <p class="foot">
+      質量比＝モル比として計算しています。手持ちと添加試料で分子量が違う場合（塩・溶媒和物の有無など）は、
+      いったん mol に直してから使ってください。秤量誤差がそのまま ee に乗るので、少量側は
+      母液を作って分取するほうが正確です。
+    </p>
+
+  <details class="fx" id="fx-dope">
+    <summary>計算式を見る</summary>
+    <p class="lbl">一般式</p>
+    <div class="eq">
+      <var>m</var><sub>add</sub> = <var>m</var><sub>0</sub> ( <var>e</var><sub>0</sub> − <var>e</var><sub>t</sub> ) / ( <var>e</var><sub>t</sub> − <var>e</var><sub>a</sub> )<br>
+      <var>e</var><sub>final</sub> = ( <var>m</var><sub>0</sub><var>e</var><sub>0</sub> + <var>m</var><sub>add</sub><var>e</var><sub>a</sub> ) / ( <var>m</var><sub>0</sub> + <var>m</var><sub>add</sub> )
+    </div>
+    <p class="def">
+      <var>m</var><sub>0</sub>：手持ちの質量、<var>m</var><sub>add</sub>：加える質量<br>
+      <var>e</var><sub>0</sub>, <var>e</var><sub>a</sub>, <var>e</var><sub>t</sub>：手持ち・添加試料・目標の ee（%）<br>
+      ee は符号付きで扱い、左側の鏡像体が過剰なら正、右側なら負とする<br>
+      （質量比をそのままモル比とみなしているので、分子量が異なる場合は mol 基準に置き換える）
+    </p>
+    <p class="lbl">現在の値を代入</p>
+    <div class="num"><div class="eq" id="fxDopeNum"></div></div>
+  </details>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  const R = 8.314462618;
+  const KCAL = 4.184;
+  const $ = id => document.getElementById(id);
+
+  let dgKJ = 0;      // 内部は常に kJ/mol
+  let T = 298.15;    // 25 °C
+  let unit = 'kJ';
+
+  const toDisp = v => unit === 'kJ' ? v : v / KCAL;
+  const toKJ   = v => unit === 'kJ' ? v : v * KCAL;
+
+  function fmtSmall(log10v){                       // 1.2×10⁻⁸ 形式
+    const e = Math.floor(log10v);
+    const m = Math.pow(10, log10v - e);
+    return m.toFixed(1) + '×10<sup>' + String(e).replace('-', '−') + '</sup>';
+  }
+
+  function render(){
+    const x = -dgKJ * 1000 / (R * T);              // x = ln K
+    const fB = 1 / (1 + Math.exp(-x));
+    const fA = 1 / (1 + Math.exp(x));
+    const ax = Math.abs(x);
+    const minorIsB = x < 0;
+
+    // バー
+    $('segA').style.width = (fA * 100) + '%';
+    $('segB').style.width = (fB * 100) + '%';
+    $('hEq').style.left = (fA * 100) + '%';
+
+    const pct = (f, log10minor) => {
+      const p = f * 100;
+      if (p >= 0.01) return p.toFixed(p >= 99.99 || p <= 0.1 ? 3 : 1) + '%';
+      return fmtSmall(log10minor) + '%';
+    };
+    // 少数種の log10(パーセント)：1/(1+e^ax) ≈ e^-ax
+    const log10minorPct = 2 - Math.log10(1 + Math.exp(Math.min(ax, 700))) ;
+    $('pctA').innerHTML = pct(fA, log10minorPct);
+    $('pctB').innerHTML = pct(fB, log10minorPct);
+
+    // 比率
+    const log10r = ax / Math.LN10;
+    let rTxt;
+    if (log10r < 4) {
+      const r = Math.exp(ax);
+      rTxt = minorIsB
+        ? r.toFixed(r < 10 ? 2 : 1) + ' <span class="colon">:</span> 1'
+        : '1 <span class="colon">:</span> ' + r.toFixed(r < 10 ? 2 : 1);
+    } else {
+      const big = fmtSmall(log10r);
+      rTxt = minorIsB ? big + ' <span class="colon">:</span> 1'
+                      : '1 <span class="colon">:</span> ' + big;
+    }
+    $('ratio').innerHTML = rTxt;
+
+    const major = ax < 1e-9 ? '等量' : (minorIsB ? 'A が多数種' : 'B が多数種');
+    $('ratioNote').textContent = major + '。' + (+T.toFixed(2)) + ' K（' + (+(T - 273.15).toFixed(2)) + ' °C）';
+
+    // K
+    const K = Math.exp(x);
+    $('kval').innerHTML = (K === 0 || !isFinite(K) || K > 1e4 || K < 1e-4)
+      ? (x >= 0 ? fmtSmall(x / Math.LN10) : fmtSmall(x / Math.LN10))
+      : K.toFixed(K < 10 ? 3 : 1);
+
+    // 偏り
+    const bias = Math.abs(fA - fB) * 100;
+    $('bias').textContent = (bias >= 0.01 ? bias.toFixed(bias > 99.99 ? 4 : 2) : bias.toExponential(1)) + '%';
+
+    // 入力欄の同期
+    if (document.activeElement !== $('dg'))      $('dg').value = +toDisp(dgKJ).toFixed(4);
+    if (document.activeElement !== $('temp'))  $('temp').value  = +T.toFixed(2);
+    if (document.activeElement !== $('tempC')) $('tempC').value = +(T - 273.15).toFixed(2);
+
+    if (document.activeElement !== $('intA') && document.activeElement !== $('intB')) {
+      $('intA').value = 1;
+      $('intB').value = +K.toPrecision(4);
+    }
+
+    document.querySelectorAll('#tempChips .chip').forEach(c => {
+      c.classList.toggle('on', Math.abs(+c.dataset.t - T) < 0.5);
+    });
+
+    $('thDG').innerHTML = '|ΔG| / ' + (unit === 'kJ' ? 'kJ mol⁻¹' : 'kcal mol⁻¹');
+    buildRef();
+    fxEq();
+  }
+
+  // 目安の表
+  const REF = [[50,50],[60,40],[75,25],[90,10],[95,5],[99,1],[99.9,0.1]];
+  function buildRef(){
+    const tb = $('refBody');
+    tb.innerHTML = '';
+    REF.forEach(([maj, min]) => {
+      const g = R * T * Math.log(maj / min) / 1000;      // kJ/mol
+      const tr = document.createElement('tr');
+      tr.className = 'pick';
+      tr.innerHTML = '<td>' + maj + ' : ' + min + '</td><td>' + min + '%</td><td>' +
+                     toDisp(g).toFixed(2) + '</td>';
+      tr.onclick = () => { dgKJ = g; render(); };
+      tb.appendChild(tr);
+    });
+  }
+
+  // 温度プリセット
+  [-80, -60, -40, -20, 0, 25, 40, 60, 80].forEach(c => {
+    const t = c + 273.15;
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = c + ' °C'; b.dataset.t = t;
+    b.onclick = () => { T = t; render(); };
+    $('tempChips').appendChild(b);
+  });
+
+  $('dg').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (isFinite(v)) { dgKJ = toKJ(v); render(); }
+  });
+  $('unit').addEventListener('change', e => { unit = e.target.value; render(); });
+  $('temp').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (isFinite(v) && v > 0) { T = v; render(); }
+  });
+  $('tempC').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (isFinite(v) && v > -273.15) { T = v + 273.15; render(); }
+  });
+
+  function fromIntegrals(){
+    const a = parseFloat($('intA').value), b = parseFloat($('intB').value);
+    if (!isFinite(a) || !isFinite(b) || a <= 0 || b <= 0) {
+      $('revNote').textContent = 'A と B の両方に正の数を入れてください。';
+      return;
+    }
+    dgKJ = -R * T * Math.log(b / a) / 1000;
+    $('revNote').textContent = 'この比に対応する ΔG を上に表示しています。';
+    render();
+  }
+  $('intA').addEventListener('input', fromIntegrals);
+  $('intB').addEventListener('input', fromIntegrals);
+
+
+  /* ---------- 式の展開 ---------- */
+  const pn = (v, d) => (v < 0 ? '(' + nf(v, d) + ')' : nf(v, d));  // 負数は括弧付き
+  const nf = (v, d) => {
+    if (!isFinite(v)) return '∞';
+    if (v !== 0 && (Math.abs(v) >= 1e5 || Math.abs(v) < 1e-4)) {
+      const t = v.toExponential(3).split('e');
+      return (+t[0]) + '×10<sup>' + t[1].replace('+','').replace('-','−') + '</sup>';
+    }
+    return (v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
+  };
+
+  function fxEq(){
+    const uJ = unit === 'kJ' ? 'kJ' : 'kcal';
+    const dgU = toDisp(dgKJ), dgJ = dgKJ * 1000;
+    const RT = R * T;
+    const x = -dgJ / RT;
+    const K = Math.exp(x);
+    const fA = 1 / (1 + Math.exp(x)), fB = 1 / (1 + Math.exp(-x));
+    $('fxEqNum').innerHTML =
+      'Δ<var>G</var> = ' + nf(dgU, 2) + ' ' + uJ + ' mol⁻¹ = ' + nf(dgJ, 1) + ' J mol⁻¹<br>' +
+      '<var>RT</var> = 8.3145 × ' + (+T.toFixed(2)) + ' = ' + RT.toFixed(1) + ' J mol⁻¹<br>' +
+      '<var>K</var> = exp( −' + pn(dgJ, 1) + ' / ' + RT.toFixed(1) + ' ) ' +
+        '= exp( ' + nf(x, 4) + ' ) = ' + nf(K, 4) + '<br>' +
+      '<var>x</var><sub>A</sub> = ' + nf(fA * 100, 2) + ' %  <span class="op">，</span>  ' +
+      '<var>x</var><sub>B</sub> = ' + nf(fB * 100, 2) + ' %';
+  }
+
+  function fxEe(){
+    const [n1, n2] = PAIRS[pairIdx];
+    const a = (100 + ee) / 2, b = (100 - ee) / 2;
+    const hi = majorFirst ? n1 : n2, lo = majorFirst ? n2 : n1;
+    const r = b > 0 ? a / b : Infinity;
+    const ddg = b > 0 ? R * T * Math.log(r) / 1000 : Infinity;
+    const uJ = unit === 'kJ' ? 'kJ' : 'kcal';
+    $('fxEeNum').innerHTML =
+      'ee = |' + a.toFixed(2) + ' − ' + b.toFixed(2) + '| / (' + a.toFixed(2) + ' + ' + b.toFixed(2) +
+        ') × 100 = ' + ee.toFixed(2) + ' %<br>' +
+      'er = ' + a.toFixed(2) + ' : ' + b.toFixed(2) + ' = ' + nf(r, 2) + ' : 1 　(' +
+        (ee < 1e-9 ? 'ラセミ体' : hi + ' 過剰、少数側 ' + lo) + ')<br>' +
+      'ΔΔ<var>G</var> = 8.3145 × ' + (+T.toFixed(2)) + ' × ln(' + nf(r, 3) + ') / 1000 = ' +
+        nf(toDisp(ddg), 2) + ' ' + uJ + ' mol⁻¹';
+  }
+
+  function fxDope(m0, e0, eA, eT, mAdd){
+    if (!isFinite(mAdd)) { $('fxDopeNum').innerHTML = '入力が揃うと展開されます。'; return; }
+    const total = m0 + mAdd;
+    const eFin = (m0 * e0 + mAdd * eA) / total;
+    const [n1, n2] = PAIRS[pairIdx];
+    $('fxDopeNum').innerHTML =
+      '符号の約束： ' + n1 + ' 過剰 = 正，' + n2 + ' 過剰 = 負<br>' +
+      '<var>e</var><sub>0</sub> = ' + nf(e0, 2) + ' <span class="op">，</span> ' +
+      '<var>e</var><sub>a</sub> = ' + nf(eA, 2) + ' <span class="op">，</span> ' +
+      '<var>e</var><sub>t</sub> = ' + nf(eT, 2) + '<br>' +
+      '<var>m</var><sub>add</sub> = ' + nf(m0, 2) + ' × ( ' + pn(e0, 2) + ' − ' + pn(eT, 2) + ' ) / ( ' +
+        pn(eT, 2) + ' − ' + pn(eA, 2) + ' )<br>' +
+      '　　　 = ' + nf(m0, 2) + ' × ' + pn(e0 - eT, 2) + ' / ' + pn(eT - eA, 2) + ' = ' + nf(mAdd, 3) + ' mg<br>' +
+      '<var>e</var><sub>final</sub> = ( ' + nf(m0, 2) + ' × ' + pn(e0, 2) + ' + ' + nf(mAdd, 3) + ' × ' + pn(eA, 2) +
+        ' ) / ' + total.toFixed(2) + ' = ' + nf(eFin, 2) + ' %';
+  }
+
+  /* ---------- タブ ---------- */
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+      $('p-eq').hidden = t.dataset.p !== 'eq';
+      $('p-ee').hidden = t.dataset.p !== 'ee';
+      $('p-dope').hidden = t.dataset.p !== 'dope';
+    };
+  });
+
+  /* ---------- ee ⇄ 比率 ---------- */
+  const PAIRS = [['D','L'], ['R','S'], ['P','M']];
+  let pairIdx = 0, ee = 0, majorFirst = true;
+
+  PAIRS.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (i === 0 ? ' on' : '');
+    b.textContent = p[0] + ' / ' + p[1];
+    b.dataset.i = i;
+    b.onclick = () => {
+      pairIdx = i;
+      document.querySelectorAll('#pairChips .chip, #pairChips2 .chip')
+        .forEach(c => c.classList.toggle('on', +c.dataset.i === i));
+      renderEE();
+    };
+    $('pairChips').appendChild(b);
+    const b2 = b.cloneNode(true);
+    b2.dataset.i = i;
+    b2.onclick = b.onclick;
+    $('pairChips2').appendChild(b2);
+  });
+
+  function renderEE(){
+    const [n1, n2] = PAIRS[pairIdx];
+    ['nm1','nm3'].forEach(id => $(id).textContent = n1);
+    ['nm2','nm4'].forEach(id => $(id).textContent = n2);
+
+    const fMaj = (100 + ee) / 200, fMin = (100 - ee) / 200;
+    const f1 = majorFirst ? fMaj : fMin;
+    const f2 = majorFirst ? fMin : fMaj;
+    const majName = majorFirst ? n1 : n2;
+    $('majName').textContent = majName;
+
+    $('seg1').style.width = (f1 * 100) + '%';
+    $('seg2').style.width = (f2 * 100) + '%';
+    $('hEe').style.left = (f1 * 100) + '%';
+    $('pct1').textContent = (f1 * 100).toFixed(2) + '%';
+    $('pct2').textContent = (f2 * 100).toFixed(2) + '%';
+
+    $('eeBig').textContent = ee.toFixed(2) + '% ee';
+    $('eeNote').textContent = ee < 1e-9 ? 'ラセミ体（1 : 1）' : majName + ' が過剰';
+
+    $('erVal').textContent = (f1 * 100).toFixed(2) + ' : ' + (f2 * 100).toFixed(2);
+    if (fMin <= 0) {
+      $('erNorm').textContent = majorFirst ? '∞ : 1' : '1 : ∞';
+      $('ddg').textContent = '∞';
+    } else {
+      const r = fMaj / fMin;
+      const rt = r < 1000 ? r.toFixed(2) : r.toExponential(2);
+      $('erNorm').textContent = majorFirst ? rt + ' : 1' : '1 : ' + rt;
+      const ddg = R * T * Math.log(r) / 1000;
+      $('ddg').textContent = toDisp(ddg).toFixed(2) + ' ' + (unit === 'kJ' ? 'kJ/mol' : 'kcal/mol');
+    }
+
+    if (document.activeElement !== $('ee')) $('ee').value = +ee.toFixed(3);
+    if (document.activeElement !== $('ar1') && document.activeElement !== $('ar2')) {
+      $('ar1').value = +(f1 * 100).toFixed(3);
+      $('ar2').value = +(f2 * 100).toFixed(3);
+    }
+
+    $('eeTemp').textContent = (+T.toFixed(2)) + ' K';
+    $('thDDG').innerHTML = '|ΔΔG| / ' + (unit === 'kJ' ? 'kJ mol⁻¹' : 'kcal mol⁻¹');
+
+    const tb = $('eeRefBody');
+    tb.innerHTML = '';
+    [0, 50, 80, 90, 95, 98, 99, 99.5].forEach(e => {
+      const g = e >= 100 ? Infinity : R * T * Math.log((100 + e) / (100 - e)) / 1000;
+      const tr = document.createElement('tr');
+      tr.className = 'pick';
+      tr.innerHTML = '<td>' + e.toFixed(1) + '%</td><td>' +
+        (50 + e / 2).toFixed(2) + ' : ' + (50 - e / 2).toFixed(2) + '</td><td>' +
+        toDisp(g).toFixed(2) + '</td>';
+      tr.onclick = () => { ee = e; renderEE(); };
+      tb.appendChild(tr);
+    });
+    fxEe();
+    renderDope();
+  }
+
+  $('ee').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (isFinite(v)) { ee = Math.max(0, Math.min(100, v)); renderEE(); }
+  });
+
+  function fromAreas(){
+    const a = parseFloat($('ar1').value), b = parseFloat($('ar2').value);
+    if (!isFinite(a) || !isFinite(b) || a < 0 || b < 0 || a + b <= 0) return;
+    ee = Math.abs(a - b) / (a + b) * 100;
+    majorFirst = a >= b;
+    renderEE();
+  }
+  $('ar1').addEventListener('input', fromAreas);
+  $('ar2').addEventListener('input', fromAreas);
+
+
+  /* ---------- ee の調製 ---------- */
+  ['side0','sideAdd','sideT'].forEach((id, k) => {
+    const sel = $(id);
+    sel.innerHTML = '<option value="1"></option><option value="-1"></option>';
+    sel.value = (id === 'sideAdd') ? '-1' : '1';
+  });
+
+  [['ラセミ体を加える', 0, -1], ['反対の鏡像体（100% ee）', 100, -1], ['同じ側（100% ee）', 100, 1]]
+    .forEach(([label, v, side]) => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = label;
+      b.onclick = () => { $('eeAdd').value = v; $('sideAdd').value = String(side); renderDope(); };
+      $('addChips').appendChild(b);
+    });
+
+  function renderDope(){
+    const [n1, n2] = PAIRS[pairIdx];
+    $('dnm1').textContent = n1;
+    $('dnm2').textContent = n2;
+    ['side0','sideAdd','sideT'].forEach(id => {
+      const o = $(id).options;
+      o[0].textContent = n1; o[1].textContent = n2;
+    });
+
+    const m0 = parseFloat($('m0').value);
+    const e0 = Math.abs(parseFloat($('ee0').value))  * (+$('side0').value);
+    const eA = Math.abs(parseFloat($('eeAdd').value)) * (+$('sideAdd').value);
+    const eT = Math.abs(parseFloat($('eeT').value))   * (+$('sideT').value);
+
+    const bad = (msg) => {
+      $('dopeOut').textContent = '—';
+      $('dopeNote').textContent = msg;
+      $('dTotal').textContent = '—';
+      $('dBreak').textContent = '—';
+      $('dseg1').style.width = '50%'; $('dseg2').style.width = '50%';
+      $('hDope').style.left = '50%';
+      $('dpct1').textContent = ''; $('dpct2').textContent = '';
+      $('fxDopeNum').innerHTML = '入力が揃うと展開されます。';
+    };
+
+    if (![m0, e0, eA, eT].every(isFinite) || m0 <= 0) { bad('手持ちの質量と ee を入力してください。'); return; }
+    if (Math.abs(eT - eA) < 1e-12) {
+      bad(Math.abs(e0 - eT) < 1e-12
+        ? '目標 ee が手持ちと同じです。加える必要はありません。'
+        : '加える試料の ee が目標と同じなので、手持ちの分を打ち消せません。');
+      return;
+    }
+
+    const mAdd = m0 * (e0 - eT) / (eT - eA);
+    if (mAdd < -1e-9) {
+      bad('この組み合わせでは到達できません（目標 ee は手持ちと添加試料の間の値に限られます）。');
+      return;
+    }
+
+    const m = Math.max(mAdd, 0);
+    $('dopeOut').textContent = (m < 10 ? m.toFixed(3) : m.toFixed(2)) + ' mg';
+    const addName = (+$('sideAdd').value) > 0 ? n1 : n2;
+    const addEE = Math.abs(parseFloat($('eeAdd').value));
+    $('dopeNote').textContent = addEE < 1e-9
+      ? 'ラセミ体を ' + (m < 10 ? m.toFixed(3) : m.toFixed(2)) + ' mg 加える'
+      : addName + ' 過剰（' + addEE + '% ee）の試料をこの量だけ加える';
+
+    const total = m0 + m;
+    const eFin = (m0 * e0 + m * eA) / total;      // n1 側を正とする符号付き ee
+    const f1 = (100 + eFin) / 200, f2 = (100 - eFin) / 200;
+    $('dseg1').style.width = (f1 * 100) + '%';
+    $('dseg2').style.width = (f2 * 100) + '%';
+    $('hDope').style.left = (f1 * 100) + '%';
+    $('dpct1').textContent = (f1 * 100).toFixed(2) + '%';
+    $('dpct2').textContent = (f2 * 100).toFixed(2) + '%';
+    $('dTotal').textContent = total.toFixed(2) + ' mg（' + Math.abs(eFin).toFixed(2) + '% ee）';
+    $('dBreak').textContent = n1 + ' ' + (f1 * total).toFixed(2) + ' / ' + n2 + ' ' + (f2 * total).toFixed(2) + ' mg';
+    fxDope(m0, e0, eA, eT, m);
+  }
+
+  ['m0','ee0','eeAdd','eeT','side0','sideAdd','sideT'].forEach(id => {
+    $(id).addEventListener('input', renderDope);
+    $(id).addEventListener('change', renderDope);
+  });
+
+
+  /* ---------- バーをスライダーとして使う ---------- */
+  function makeDraggable(barId, cb){
+    const bar = $(barId);
+    let on = false;
+    const upd = e => {
+      const r = bar.getBoundingClientRect();
+      if (r.width <= 0) return;
+      cb(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
+    };
+    bar.addEventListener('pointerdown', e => {
+      on = true; bar.classList.add('dragging');
+      try { bar.setPointerCapture(e.pointerId); } catch (_) {}
+      upd(e); e.preventDefault();
+    });
+    bar.addEventListener('pointermove', e => { if (on) { upd(e); e.preventDefault(); } });
+    ['pointerup','pointercancel','lostpointercapture'].forEach(ev =>
+      bar.addEventListener(ev, () => { on = false; bar.classList.remove('dragging'); }));
+  }
+
+  // ΔG タブ：左が A の割合
+  makeDraggable('barEq', f => {
+    const fA = Math.min(0.9992, Math.max(0.0008, f));
+    dgKJ = -R * T * Math.log((1 - fA) / fA) / 1000;
+    render();
+  });
+
+  // ee タブ：左が 1 番目の鏡像体の割合
+  makeDraggable('barEe', f => {
+    ee = Math.abs(2 * f - 1) * 100;
+    majorFirst = f >= 0.5;
+    renderEE();
+  });
+
+  // 調製タブ：目標 ee を動かす
+  makeDraggable('barDope', f => {
+    const signed = (2 * f - 1) * 100;
+    $('eeT').value = +Math.abs(signed).toFixed(2);
+    $('sideT').value = signed >= 0 ? '1' : '-1';
+    renderDope();
+  });
+
+  // 温度・単位の変更を ee タブにも反映
+  const renderEq = render;
+  render = function(){ renderEq(); renderEE(); };
+
+  render();
+})();
+</script>
+</body>
+</html>
