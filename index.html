@@ -206,7 +206,7 @@
   </div>
   <p class="hint">バーを左右にドラッグして比率を変えると、ΔG が決まります</p>
 
-  <div class="ratio" id="ratio">1.00 <span class="colon">:</span> 1.00</div>
+  <div class="ratio" id="ratio">1 <span class="colon">:</span> 1</div>
   <p class="ratio-note" id="ratioNote">等量。298.15 K（25 °C）</p>
 
   <div class="field">
@@ -246,7 +246,7 @@
 
   <div class="stats">
     <div class="stat"><div class="k">平衡定数 K = [B]/[A]</div><div class="v" id="kval">1.000</div></div>
-    <div class="stat"><div class="k">偏り（多数 − 少数）</div><div class="v" id="bias">0.0%</div></div>
+    <div class="stat"><div class="k">偏り（多数 − 少数）</div><div class="v" id="bias">0.00%</div></div>
   </div>
 
   <hr>
@@ -260,7 +260,7 @@
   <hr>
 
   <p class="foot">
-    R = 8.3145 J K⁻¹ mol⁻¹。A・B が縮退（等価な配座が n 個ある等）している場合は
+    R = 8.314462618 J K⁻¹ mol⁻¹。A・B が縮退（等価な配座が n 個ある等）している場合は
     <code>K = (n<sub>B</sub>/n<sub>A</sub>)·exp(−ΔG/RT)</code> となり、その分だけ実測比が偏ります。
     速度論支配で凍結された比には、この式は使えません。
   </p>
@@ -325,7 +325,7 @@
 
     <div class="stats">
       <div class="stat"><div class="k">エナンチオマー比 er</div><div class="v" id="erVal">50.00 : 50.00</div></div>
-      <div class="stat"><div class="k">少数側で規格化</div><div class="v" id="erNorm">1.00 : 1</div></div>
+      <div class="stat"><div class="k">少数側で規格化</div><div class="v" id="erNorm">1 : 1</div></div>
     </div>
 
     <hr>
@@ -470,6 +470,15 @@
     return m.toFixed(1) + '×10<sup>' + String(e).replace('-', '−') + '</sup>';
   }
 
+  // 丸めで 100 や 0 にならないよう「>99.99」「<0.01」と表す（% は付けない）
+  // q は 100 − p。p が浮動小数点で 100 ちょうどになる場合に、別途求めた値を渡す
+  function pctFix(p, d, q = 100 - p){
+    const s = p.toFixed(d);
+    if (q > 0 && +s >= 100) return '>' + (100 - Math.pow(10, -d)).toFixed(d);
+    if (p > 0 && +s <= 0) return '<' + Math.pow(10, -d).toFixed(d);
+    return s;
+  }
+
   function render(){
     const x = -dgKJ * 1000 / (R * T);              // x = ln K
     const fB = 1 / (1 + Math.exp(-x));
@@ -482,20 +491,22 @@
     $('segB').style.width = (fB * 100) + '%';
     $('hEq').style.left = (fA * 100) + '%';
 
-    const pct = (f, log10minor) => {
+    const pct = (f, g, log10minor) => {
       const p = f * 100;
-      if (p >= 0.01) return p.toFixed(p >= 99.99 || p <= 0.1 ? 3 : 1) + '%';
+      if (p >= 0.01) return pctFix(p, p >= 99.9 || p <= 0.1 ? 3 : 1, g * 100) + '%';
       return fmtSmall(log10minor) + '%';
     };
     // 少数種の log10(パーセント)：1/(1+e^ax) ≈ e^-ax
     const log10minorPct = 2 - Math.log10(1 + Math.exp(Math.min(ax, 700))) ;
-    $('pctA').innerHTML = pct(fA, log10minorPct);
-    $('pctB').innerHTML = pct(fB, log10minorPct);
+    $('pctA').innerHTML = pct(fA, fB, log10minorPct);
+    $('pctB').innerHTML = pct(fB, fA, log10minorPct);
 
     // 比率
     const log10r = ax / Math.LN10;
     let rTxt;
-    if (log10r < 4) {
+    if (ax < 1e-9) {
+      rTxt = '1 <span class="colon">:</span> 1';
+    } else if (log10r < 4) {
       const r = Math.exp(ax);
       rTxt = minorIsB
         ? r.toFixed(r < 10 ? 2 : 1) + ' <span class="colon">:</span> 1'
@@ -513,12 +524,12 @@
     // K
     const K = Math.exp(x);
     $('kval').innerHTML = (K === 0 || !isFinite(K) || K > 1e4 || K < 1e-4)
-      ? (x >= 0 ? fmtSmall(x / Math.LN10) : fmtSmall(x / Math.LN10))
+      ? fmtSmall(x / Math.LN10)
       : K.toFixed(K < 10 ? 3 : 1);
 
     // 偏り
     const bias = Math.abs(fA - fB) * 100;
-    $('bias').textContent = (bias >= 0.01 ? bias.toFixed(bias > 99.99 ? 4 : 2) : bias.toExponential(1)) + '%';
+    $('bias').textContent = (bias >= 0.01 ? pctFix(bias, bias > 99.99 ? 4 : 2, Math.min(fA, fB) * 200) : bias < 1e-12 ? '0.00' : bias.toExponential(1)) + '%';
 
     // 入力欄の同期
     if (document.activeElement !== $('dg'))      $('dg').value = +toDisp(dgKJ).toFixed(4);
@@ -610,13 +621,16 @@
     const x = -dgJ / RT;
     const K = Math.exp(x);
     const fA = 1 / (1 + Math.exp(x)), fB = 1 / (1 + Math.exp(-x));
+    const pMin = Math.min(fA, fB) * 100;
+    const d = pMin > 0 && pMin < 0.1 ? Math.min(6, Math.ceil(-Math.log10(pMin)) + 2) : 2;
+    const pf = (v, w) => v < 1e-4 ? nf(v, d) : pctFix(v, d, w);
     $('fxEqNum').innerHTML =
       'Δ<var>G</var> = ' + nf(dgU, 2) + ' ' + uJ + ' mol⁻¹ = ' + nf(dgJ, 1) + ' J mol⁻¹<br>' +
-      '<var>RT</var> = 8.3145 × ' + (+T.toFixed(2)) + ' = ' + RT.toFixed(1) + ' J mol⁻¹<br>' +
+      '<var>RT</var> = 8.314462618 × ' + (+T.toFixed(2)) + ' = ' + RT.toFixed(1) + ' J mol⁻¹<br>' +
       '<var>K</var> = exp( −' + pn(dgJ, 1) + ' / ' + RT.toFixed(1) + ' ) ' +
         '= exp( ' + nf(x, 4) + ' ) = ' + nf(K, 4) + '<br>' +
-      '<var>x</var><sub>A</sub> = ' + nf(fA * 100, 2) + ' %  <span class="op">，</span>  ' +
-      '<var>x</var><sub>B</sub> = ' + nf(fB * 100, 2) + ' %';
+      '<var>x</var><sub>A</sub> = ' + pf(fA * 100, fB * 100) + ' %  <span class="op">，</span>  ' +
+      '<var>x</var><sub>B</sub> = ' + pf(fB * 100, fA * 100) + ' %';
   }
 
   function fxEe(){
@@ -626,12 +640,14 @@
     const r = b > 0 ? a / b : Infinity;
     const ddg = b > 0 ? R * T * Math.log(r) / 1000 : Infinity;
     const uJ = unit === 'kJ' ? 'kJ' : 'kcal';
+    const d = b > 0 && b < 0.1 ? Math.min(12, Math.ceil(-Math.log10(b)) + 2) : 2;
+    const as = a.toFixed(d), bs = b.toFixed(d);
     $('fxEeNum').innerHTML =
-      'ee = |' + a.toFixed(2) + ' − ' + b.toFixed(2) + '| / (' + a.toFixed(2) + ' + ' + b.toFixed(2) +
-        ') × 100 = ' + ee.toFixed(2) + ' %<br>' +
-      'er = ' + a.toFixed(2) + ' : ' + b.toFixed(2) + ' = ' + nf(r, 2) + ' : 1 　(' +
+      'ee = |' + as + ' − ' + bs + '| / (' + as + ' + ' + bs +
+        ') × 100 = ' + pctFix(ee, d) + ' %<br>' +
+      'er = ' + as + ' : ' + bs + ' = ' + nf(r, 2) + ' : 1 　(' +
         (ee < 1e-9 ? 'ラセミ体' : hi + ' 過剰、少数側 ' + lo) + ')<br>' +
-      'ΔΔ<var>G</var> = 8.3145 × ' + (+T.toFixed(2)) + ' × ln(' + nf(r, 3) + ') / 1000 = ' +
+      'ΔΔ<var>G</var> = 8.314462618 × ' + (+T.toFixed(2)) + ' × ln(' + nf(r, 3) + ') / 1000 = ' +
         nf(toDisp(ddg), 2) + ' ' + uJ + ' mol⁻¹';
   }
 
@@ -698,20 +714,20 @@
     $('seg1').style.width = (f1 * 100) + '%';
     $('seg2').style.width = (f2 * 100) + '%';
     $('hEe').style.left = (f1 * 100) + '%';
-    $('pct1').textContent = (f1 * 100).toFixed(2) + '%';
-    $('pct2').textContent = (f2 * 100).toFixed(2) + '%';
+    $('pct1').textContent = pctFix(f1 * 100, 2) + '%';
+    $('pct2').textContent = pctFix(f2 * 100, 2) + '%';
 
-    $('eeBig').textContent = ee.toFixed(2) + '% ee';
+    $('eeBig').textContent = pctFix(ee, 2) + '% ee';
     $('eeNote').textContent = ee < 1e-9 ? 'ラセミ体（1 : 1）' : majName + ' が過剰';
 
-    $('erVal').textContent = (f1 * 100).toFixed(2) + ' : ' + (f2 * 100).toFixed(2);
+    $('erVal').textContent = pctFix(f1 * 100, 2) + ' : ' + pctFix(f2 * 100, 2);
     if (fMin <= 0) {
       $('erNorm').textContent = majorFirst ? '∞ : 1' : '1 : ∞';
       $('ddg').textContent = '∞';
     } else {
       const r = fMaj / fMin;
       const rt = r < 1000 ? r.toFixed(2) : r.toExponential(2);
-      $('erNorm').textContent = majorFirst ? rt + ' : 1' : '1 : ' + rt;
+      $('erNorm').textContent = ee < 1e-9 ? '1 : 1' : (majorFirst ? rt + ' : 1' : '1 : ' + rt);
       const ddg = R * T * Math.log(r) / 1000;
       $('ddg').textContent = toDisp(ddg).toFixed(2) + ' ' + (unit === 'kJ' ? 'kJ/mol' : 'kcal/mol');
     }
@@ -825,9 +841,9 @@
     $('dseg1').style.width = (f1 * 100) + '%';
     $('dseg2').style.width = (f2 * 100) + '%';
     $('hDope').style.left = (f1 * 100) + '%';
-    $('dpct1').textContent = (f1 * 100).toFixed(2) + '%';
-    $('dpct2').textContent = (f2 * 100).toFixed(2) + '%';
-    $('dTotal').textContent = total.toFixed(2) + ' mg（' + Math.abs(eFin).toFixed(2) + '% ee）';
+    $('dpct1').textContent = pctFix(f1 * 100, 2) + '%';
+    $('dpct2').textContent = pctFix(f2 * 100, 2) + '%';
+    $('dTotal').textContent = total.toFixed(2) + ' mg（' + pctFix(Math.abs(eFin), 2) + '% ee）';
     $('dBreak').textContent = n1 + ' ' + (f1 * total).toFixed(2) + ' / ' + n2 + ' ' + (f2 * total).toFixed(2) + ' mg';
     fxDope(m0, e0, eA, eT, m);
   }
